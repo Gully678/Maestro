@@ -5374,11 +5374,12 @@ You are taking over this conversation. Based on the context above, provide a bri
 	);
 
 	/**
-	 * Close a file preview tab. Removes it from filePreviewTabs and unifiedTabOrder.
+	 * Force close a file preview tab without confirmation.
+	 * Removes it from filePreviewTabs and unifiedTabOrder.
 	 * If this was the active file tab, selects the next tab in unifiedTabOrder (could be AI or file).
 	 * Updates activeTabId or activeFileTabId accordingly.
 	 */
-	const handleCloseFileTab = useCallback((tabId: string) => {
+	const forceCloseFileTab = useCallback((tabId: string) => {
 		setSessions((prev) =>
 			prev.map((s) => {
 				if (s.id !== activeSessionIdRef.current) return s;
@@ -5444,6 +5445,83 @@ You are taking over this conversation. Based on the context above, provide a bri
 					activeFileTabId: newActiveFileTabId,
 					activeTabId: newActiveTabId,
 				};
+			})
+		);
+	}, []);
+
+	/**
+	 * Close a file preview tab with unsaved changes check.
+	 * If the tab has unsaved changes (editContent !== undefined), show a confirmation modal.
+	 * Otherwise, close the tab immediately.
+	 */
+	const handleCloseFileTab = useCallback(
+		(tabId: string) => {
+			// Find the tab to check for unsaved changes
+			const activeSession = sessions.find((s) => s.id === activeSessionIdRef.current);
+			if (!activeSession) {
+				forceCloseFileTab(tabId);
+				return;
+			}
+
+			const tabToClose = activeSession.filePreviewTabs.find((tab) => tab.id === tabId);
+			if (!tabToClose) {
+				forceCloseFileTab(tabId);
+				return;
+			}
+
+			// Check if tab has unsaved changes (editContent is set when different from saved content)
+			if (tabToClose.editContent !== undefined) {
+				// Show confirmation modal
+				setConfirmModalMessage(
+					`"${tabToClose.name}${tabToClose.extension}" has unsaved changes. Are you sure you want to close it?`
+				);
+				setConfirmModalOnConfirm(() => () => {
+					forceCloseFileTab(tabId);
+				});
+				setConfirmModalOpen(true);
+			} else {
+				// No unsaved changes, close immediately
+				forceCloseFileTab(tabId);
+			}
+		},
+		[sessions, forceCloseFileTab, setConfirmModalMessage, setConfirmModalOnConfirm, setConfirmModalOpen]
+	);
+
+	/**
+	 * Update a file tab's editMode state.
+	 * Called when user toggles between edit and preview mode in FilePreview.
+	 */
+	const handleFileTabEditModeChange = useCallback((tabId: string, editMode: boolean) => {
+		setSessions((prev) =>
+			prev.map((s) => {
+				if (s.id !== activeSessionIdRef.current) return s;
+
+				const updatedFileTabs = s.filePreviewTabs.map((tab) => {
+					if (tab.id !== tabId) return tab;
+					return { ...tab, editMode };
+				});
+
+				return { ...s, filePreviewTabs: updatedFileTabs };
+			})
+		);
+	}, []);
+
+	/**
+	 * Update a file tab's editContent state.
+	 * Called when user edits content in FilePreview.
+	 * Pass undefined to indicate no pending changes (content matches saved file).
+	 */
+	const handleFileTabEditContentChange = useCallback((tabId: string, editContent: string | undefined) => {
+		setSessions((prev) =>
+			prev.map((s) => {
+				if (s.id !== activeSessionIdRef.current) return s;
+
+				const updatedFileTabs = s.filePreviewTabs.map((tab) => {
+					if (tab.id !== tabId) return tab;
+					return { ...tab, editContent };
+				});
+
+				return { ...s, filePreviewTabs: updatedFileTabs };
 			})
 		);
 	}, []);
@@ -13050,6 +13128,8 @@ You are taking over this conversation. Based on the context above, provide a bri
 		activeFileTab,
 		handleFileTabSelect: handleSelectFileTab,
 		handleFileTabClose: handleCloseFileTab,
+		handleFileTabEditModeChange,
+		handleFileTabEditContentChange,
 
 		handleScrollPositionChange,
 		handleAtBottomChange,
