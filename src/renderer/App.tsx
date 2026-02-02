@@ -6490,14 +6490,21 @@ You are taking over this conversation. Based on the context above, provide a bri
 		const history = currentSession.filePreviewHistory ?? [];
 		if (historyIndex > 0) {
 			const newIndex = historyIndex - 1;
+			const historyEntry = history[newIndex];
+			// Update the history index
 			setSessions((prev) =>
 				prev.map((s) =>
 					s.id === currentSession.id ? { ...s, filePreviewHistoryIndex: newIndex } : s
 				)
 			);
-			setPreviewFile(history[newIndex]);
+			// Open or select the file tab
+			handleOpenFileTab({
+				path: historyEntry.path,
+				name: historyEntry.name,
+				content: historyEntry.content,
+			});
 		}
-	}, []);
+	}, [handleOpenFileTab]);
 
 	const handleNavigateForward = useCallback(() => {
 		const currentSession = sessionsRef.current.find((s) => s.id === activeSessionIdRef.current);
@@ -6506,26 +6513,40 @@ You are taking over this conversation. Based on the context above, provide a bri
 		const history = currentSession.filePreviewHistory ?? [];
 		if (historyIndex < history.length - 1) {
 			const newIndex = historyIndex + 1;
+			const historyEntry = history[newIndex];
+			// Update the history index
 			setSessions((prev) =>
 				prev.map((s) =>
 					s.id === currentSession.id ? { ...s, filePreviewHistoryIndex: newIndex } : s
 				)
 			);
-			setPreviewFile(history[newIndex]);
+			// Open or select the file tab
+			handleOpenFileTab({
+				path: historyEntry.path,
+				name: historyEntry.name,
+				content: historyEntry.content,
+			});
 		}
-	}, []);
+	}, [handleOpenFileTab]);
 
 	const handleNavigateToIndex = useCallback((index: number) => {
 		const currentSession = sessionsRef.current.find((s) => s.id === activeSessionIdRef.current);
 		if (!currentSession) return;
 		const history = currentSession.filePreviewHistory ?? [];
 		if (index >= 0 && index < history.length) {
+			const historyEntry = history[index];
+			// Update the history index
 			setSessions((prev) =>
 				prev.map((s) => (s.id === currentSession.id ? { ...s, filePreviewHistoryIndex: index } : s))
 			);
-			setPreviewFile(history[index]);
+			// Open or select the file tab
+			handleOpenFileTab({
+				path: historyEntry.path,
+				name: historyEntry.name,
+				content: historyEntry.content,
+			});
 		}
-	}, []);
+	}, [handleOpenFileTab]);
 
 	const handleClearFilePreviewHistory = useCallback(() => {
 		const currentSession = sessionsRef.current.find((s) => s.id === activeSessionIdRef.current);
