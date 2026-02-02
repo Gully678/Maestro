@@ -586,8 +586,16 @@ export const RightPanel = memo(
 						{currentSessionBatchState.documents &&
 							currentSessionBatchState.documents.length === 1 && (
 								<div className="mb-2">
-									<span className="text-xs" style={{ color: theme.colors.textDim }}>
-										{currentSessionBatchState.documents[0]}.md
+									<span
+										className="text-xs overflow-hidden text-ellipsis whitespace-nowrap block"
+										style={{
+											color: theme.colors.textDim,
+											direction: 'rtl',
+											textAlign: 'left',
+										}}
+										title={`${currentSessionBatchState.documents[0]}.md`}
+									>
+										<bdi>{currentSessionBatchState.documents[0]}.md</bdi>
 									</span>
 								</div>
 							)}
@@ -599,17 +607,23 @@ export const RightPanel = memo(
 									{/* Document name with progress bar */}
 									<div className="flex items-center gap-2 min-w-0">
 										<span
-											className="text-xs font-medium truncate min-w-0"
-											style={{ color: theme.colors.textMain }}
+											className="text-xs font-medium overflow-hidden text-ellipsis whitespace-nowrap min-w-0"
+											style={{
+												color: theme.colors.textMain,
+												direction: 'rtl',
+												textAlign: 'left',
+											}}
 											title={`Document ${currentSessionBatchState.currentDocumentIndex + 1}/${currentSessionBatchState.documents.length}: ${currentSessionBatchState.documents[currentSessionBatchState.currentDocumentIndex]}.md`}
 										>
-											Document {currentSessionBatchState.currentDocumentIndex + 1}/
-											{currentSessionBatchState.documents.length}:{' '}
-											{
-												currentSessionBatchState.documents[
-													currentSessionBatchState.currentDocumentIndex
-												]
-											}
+											<bdi>
+												Document {currentSessionBatchState.currentDocumentIndex + 1}/
+												{currentSessionBatchState.documents.length}:{' '}
+												{
+													currentSessionBatchState.documents[
+														currentSessionBatchState.currentDocumentIndex
+													]
+												}
+											</bdi>
 										</span>
 										<div
 											className="flex-1 h-1 rounded-full overflow-hidden shrink-0"
