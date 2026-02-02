@@ -107,6 +107,10 @@ interface FilePreviewProps {
 	initialScrollTop?: number;
 	/** Callback when scroll position changes (used for file tab persistence) */
 	onScrollPositionChange?: (scrollTop: number) => void;
+	/** Initial search query to restore (used for file tab persistence) */
+	initialSearchQuery?: string;
+	/** Callback when search query changes (used for file tab persistence) */
+	onSearchQueryChange?: (query: string) => void;
 }
 
 export interface FilePreviewHandle {
@@ -570,11 +574,22 @@ export const FilePreview = forwardRef<FilePreviewHandle, FilePreviewProps>(funct
 		onEditContentChange,
 		initialScrollTop,
 		onScrollPositionChange,
+		initialSearchQuery,
+		onSearchQueryChange,
 	},
 	ref
 ) {
-	const [searchQuery, setSearchQuery] = useState('');
-	const [searchOpen, setSearchOpen] = useState(false);
+	// Search state - use initialSearchQuery if provided, and notify parent of changes
+	const [internalSearchQuery, setInternalSearchQuery] = useState(initialSearchQuery ?? '');
+	// Wrapper to update state and notify parent
+	const setSearchQuery = useCallback((query: string) => {
+		setInternalSearchQuery(query);
+		onSearchQueryChange?.(query);
+	}, [onSearchQueryChange]);
+	// Expose the current search query value
+	const searchQuery = internalSearchQuery;
+	// If initialSearchQuery is provided and non-empty, auto-open search
+	const [searchOpen, setSearchOpen] = useState(Boolean(initialSearchQuery));
 	const [showCopyNotification, setShowCopyNotification] = useState(false);
 	const [showBackPopup, setShowBackPopup] = useState(false);
 	const [showForwardPopup, setShowForwardPopup] = useState(false);

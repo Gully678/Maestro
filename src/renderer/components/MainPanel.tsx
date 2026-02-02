@@ -220,6 +220,8 @@ interface MainPanelProps {
 	onFileTabEditContentChange?: (tabId: string, editContent: string | undefined) => void;
 	/** Handler to update file tab scrollTop when scrolling in FilePreview */
 	onFileTabScrollPositionChange?: (tabId: string, scrollTop: number) => void;
+	/** Handler to update file tab searchQuery when searching in FilePreview */
+	onFileTabSearchQueryChange?: (tabId: string, searchQuery: string) => void;
 
 	// Scroll position persistence
 	onScrollPositionChange?: (scrollTop: number) => void;
@@ -488,6 +490,7 @@ export const MainPanel = React.memo(
 			onFileTabEditModeChange,
 			onFileTabEditContentChange,
 			onFileTabScrollPositionChange,
+			onFileTabSearchQueryChange,
 		} = props;
 
 		// Get the active tab for header display
@@ -1637,6 +1640,11 @@ export const MainPanel = React.memo(
 									initialScrollTop={activeFileTab.scrollTop}
 									onScrollPositionChange={(scrollTop) => {
 										onFileTabScrollPositionChange?.(activeFileTabId, scrollTop);
+									}}
+									// Pass search query props for persistence across tab switches
+									initialSearchQuery={activeFileTab.searchQuery}
+									onSearchQueryChange={(query) => {
+										onFileTabSearchQueryChange?.(activeFileTabId, query);
 									}}
 								/>
 							</div>

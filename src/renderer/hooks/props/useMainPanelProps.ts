@@ -228,6 +228,7 @@ export interface UseMainPanelPropsDeps {
 	handleFileTabEditModeChange: (tabId: string, editMode: boolean) => void;
 	handleFileTabEditContentChange: (tabId: string, editContent: string | undefined) => void;
 	handleFileTabScrollPositionChange: (tabId: string, scrollTop: number) => void;
+	handleFileTabSearchQueryChange: (tabId: string, searchQuery: string) => void;
 
 	handleScrollPositionChange: (scrollTop: number) => void;
 	handleAtBottomChange: (isAtBottom: boolean) => void;
@@ -421,6 +422,7 @@ export function useMainPanelProps(deps: UseMainPanelPropsDeps) {
 			onFileTabEditModeChange: deps.handleFileTabEditModeChange,
 			onFileTabEditContentChange: deps.handleFileTabEditContentChange,
 			onFileTabScrollPositionChange: deps.handleFileTabScrollPositionChange,
+			onFileTabSearchQueryChange: deps.handleFileTabSearchQueryChange,
 			onToggleTabSaveToHistory: deps.handleToggleTabSaveToHistory,
 			onToggleTabShowThinking: deps.handleToggleTabShowThinking,
 			onScrollPositionChange: deps.handleScrollPositionChange,
@@ -656,6 +658,7 @@ export function useMainPanelProps(deps: UseMainPanelPropsDeps) {
 			deps.handleFileTabEditModeChange,
 			deps.handleFileTabEditContentChange,
 			deps.handleFileTabScrollPositionChange,
+			deps.handleFileTabSearchQueryChange,
 			deps.handleScrollPositionChange,
 			deps.handleAtBottomChange,
 			deps.handleMainPanelInputBlur,

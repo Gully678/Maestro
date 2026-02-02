@@ -5546,6 +5546,25 @@ You are taking over this conversation. Based on the context above, provide a bri
 	}, []);
 
 	/**
+	 * Update a file tab's search query state.
+	 * Called when user types in the search box within FilePreview.
+	 */
+	const handleFileTabSearchQueryChange = useCallback((tabId: string, searchQuery: string) => {
+		setSessions((prev) =>
+			prev.map((s) => {
+				if (s.id !== activeSessionIdRef.current) return s;
+
+				const updatedFileTabs = s.filePreviewTabs.map((tab) => {
+					if (tab.id !== tabId) return tab;
+					return { ...tab, searchQuery };
+				});
+
+				return { ...s, filePreviewTabs: updatedFileTabs };
+			})
+		);
+	}, []);
+
+	/**
 	 * Select a file preview tab. This sets the file tab as active.
 	 * activeTabId is preserved to track the last active AI tab for when the user switches back.
 	 * If fileTabAutoRefreshEnabled setting is true, checks if file has changed on disk and refreshes content.
@@ -13150,6 +13169,7 @@ You are taking over this conversation. Based on the context above, provide a bri
 		handleFileTabEditModeChange,
 		handleFileTabEditContentChange,
 		handleFileTabScrollPositionChange,
+		handleFileTabSearchQueryChange,
 
 		handleScrollPositionChange,
 		handleAtBottomChange,

@@ -735,6 +735,74 @@ print("world")
 		});
 	});
 
+	describe('search state persistence', () => {
+		it('calls onSearchQueryChange when typing in search', async () => {
+			const onSearchQueryChange = vi.fn();
+			const { container } = render(
+				<FilePreview
+					{...defaultProps}
+					file={{ name: 'test.ts', content: 'const searchable = true;', path: '/test/test.ts' }}
+					onSearchQueryChange={onSearchQueryChange}
+				/>
+			);
+
+			// Open search with keyboard shortcut (Cmd/Ctrl+F)
+			// The container div has tabIndex=0 and handles keyboard events
+			const mainContainer = container.firstChild as HTMLElement;
+			fireEvent.keyDown(mainContainer, { key: 'f', metaKey: true });
+
+			// Find the search input and type
+			const searchInput = screen.getByPlaceholderText(/Search in file/);
+			fireEvent.change(searchInput, { target: { value: 'searchable' } });
+
+			expect(onSearchQueryChange).toHaveBeenCalledWith('searchable');
+		});
+
+		it('initializes with initialSearchQuery and auto-opens search', () => {
+			render(
+				<FilePreview
+					{...defaultProps}
+					file={{ name: 'test.ts', content: 'const foo = "bar";', path: '/test/test.ts' }}
+					initialSearchQuery="foo"
+				/>
+			);
+
+			// Search should be auto-opened with the initial query
+			const searchInput = screen.getByPlaceholderText(/Search in file/);
+			expect(searchInput).toBeInTheDocument();
+			expect(searchInput).toHaveValue('foo');
+		});
+
+		it('does not auto-open search when initialSearchQuery is empty', () => {
+			render(
+				<FilePreview
+					{...defaultProps}
+					file={{ name: 'test.ts', content: 'const foo = "bar";', path: '/test/test.ts' }}
+					initialSearchQuery=""
+				/>
+			);
+
+			// Search should not be open
+			expect(screen.queryByPlaceholderText(/Search in file/)).not.toBeInTheDocument();
+		});
+
+		it('does not throw when onSearchQueryChange is not provided', async () => {
+			const { container } = render(
+				<FilePreview
+					{...defaultProps}
+					file={{ name: 'test.ts', content: 'const searchable = true;', path: '/test/test.ts' }}
+					// No onSearchQueryChange prop
+				/>
+			);
+
+			// Open search and type - should not throw
+			const mainContainer = container.firstChild as HTMLElement;
+			fireEvent.keyDown(mainContainer, { key: 'f', metaKey: true });
+			const searchInput = screen.getByPlaceholderText(/Search in file/);
+			expect(() => fireEvent.change(searchInput, { target: { value: 'test' } })).not.toThrow();
+		});
+	});
+
 	describe('scroll position persistence', () => {
 		it('calls onScrollPositionChange when scrolling (throttled)', async () => {
 			const onScrollPositionChange = vi.fn();
