@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { FilePreview } from '../../../renderer/components/FilePreview';
 
 // Mock lucide-react icons
@@ -68,9 +68,11 @@ vi.mock('../../../renderer/constants/modalPriorities', () => ({
 	},
 }));
 
-// Mock useClickOutside hook - capture the callback and enabled state for testing
-const mockClickOutsideCallback = { current: null as (() => void) | null };
-const mockClickOutsideEnabled = { current: false };
+// Mock useClickOutside hook - capture both container and TOC callbacks separately
+// FilePreview calls useClickOutside twice: first for container (handleEscapeRequest), second for TOC
+const mockContainerClickOutside = { callback: null as (() => void) | null, enabled: false };
+const mockTocClickOutside = { callback: null as (() => void) | null, enabled: false };
+let useClickOutsideCallCount = 0;
 vi.mock('../../../renderer/hooks/ui/useClickOutside', () => ({
 	useClickOutside: (
 		_ref: unknown,
@@ -78,10 +80,20 @@ vi.mock('../../../renderer/hooks/ui/useClickOutside', () => ({
 		enabled: boolean,
 		_options?: unknown
 	) => {
-		mockClickOutsideCallback.current = callback;
-		mockClickOutsideEnabled.current = enabled;
+		// First call is for container (handleEscapeRequest), second is for TOC
+		if (useClickOutsideCallCount % 2 === 0) {
+			mockContainerClickOutside.callback = callback;
+			mockContainerClickOutside.enabled = enabled;
+		} else {
+			mockTocClickOutside.callback = callback;
+			mockTocClickOutside.enabled = enabled;
+		}
+		useClickOutsideCallCount++;
 	},
 }));
+// Legacy aliases for backward compatibility with existing tests
+const mockClickOutsideCallback = { get current() { return mockContainerClickOutside.callback; } };
+const mockClickOutsideEnabled = { get current() { return mockContainerClickOutside.enabled; } };
 
 // Mock MermaidRenderer
 vi.mock('../../../renderer/components/MermaidRenderer', () => ({
@@ -138,6 +150,12 @@ const defaultProps = {
 describe('FilePreview', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		// Reset useClickOutside call counter so each test starts fresh
+		useClickOutsideCallCount = 0;
+		mockContainerClickOutside.callback = null;
+		mockContainerClickOutside.enabled = false;
+		mockTocClickOutside.callback = null;
+		mockTocClickOutside.enabled = false;
 	});
 
 	describe('Document Graph button', () => {
@@ -755,7 +773,7 @@ print("world")
 
 		it('closes TOC when clicking outside of it', async () => {
 			const markdownWithHeadings = '# Heading 1\n## Heading 2\n## Heading 3';
-			const { container } = render(
+			render(
 				<FilePreview
 					{...defaultProps}
 					file={{ name: 'doc.md', content: markdownWithHeadings, path: '/test/doc.md' }}
@@ -770,12 +788,13 @@ print("world")
 			// Verify TOC is open
 			expect(screen.getByText('Contents')).toBeInTheDocument();
 
-			// Wait for the delay in useClickOutside hook
-			await new Promise((resolve) => setTimeout(resolve, 10));
-
-			// Click outside the TOC (on the main container)
-			const mainContainer = container.firstChild as HTMLElement;
-			fireEvent.mouseDown(mainContainer);
+			// Simulate click outside by invoking the TOC click-outside callback
+			// (the mock captures this callback when useClickOutside is called for TOC)
+			// Wrap in act() to ensure React state updates are processed
+			expect(mockTocClickOutside.callback).not.toBeNull();
+			act(() => {
+				mockTocClickOutside.callback?.();
+			});
 
 			// TOC should be closed
 			expect(screen.queryByText('Contents')).not.toBeInTheDocument();
