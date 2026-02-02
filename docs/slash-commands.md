@@ -25,7 +25,7 @@ The `/wizard` command can take optional natural language input: `/wizard add use
 The `/skills` command displays all Claude Code skills available in your project. Skills are extensions that provide domain-specific knowledge and capabilities to Claude Code.
 
 <Frame>
-  <img src="/screenshots/skills-enumeration.png" alt="Skills enumeration showing project skills with name, token count, and description" />
+  <img src="./screenshots/skills-enumeration.png" alt="Skills enumeration showing project skills with name, token count, and description" />
 </Frame>
 
 Skills are loaded from:
