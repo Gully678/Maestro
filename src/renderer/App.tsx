@@ -757,6 +757,8 @@ function MaestroConsoleInner() {
 	const { showUnreadOnly, setShowUnreadOnly } = useUILayout();
 	// Track the active tab ID before entering unread filter mode, so we can restore it when exiting
 	const { preFilterActiveTabIdRef } = useUILayout();
+	// Track the active file tab ID before switching to terminal mode, so we can restore it when returning to AI mode
+	const { preTerminalFileTabIdRef } = useUILayout();
 
 	// File Explorer State
 	const [filePreviewLoading, setFilePreviewLoading] = useState<{
@@ -9799,14 +9801,27 @@ You are taking over this conversation. Based on the context above, provide a bri
 			prev.map((s) => {
 				if (s.id !== activeSessionId) return s;
 				const newMode = s.inputMode === 'ai' ? 'terminal' : 'ai';
-				// Clear file preview when switching to terminal mode
-				// This ensures cmd+j from file preview goes directly to terminal
-				const clearFileTab = newMode === 'terminal';
-				return {
-					...s,
-					inputMode: newMode,
-					...(clearFileTab && { activeFileTabId: null }),
-				};
+
+				if (newMode === 'terminal') {
+					// Switching to terminal mode: save current file tab (if any) and clear it
+					preTerminalFileTabIdRef.current = s.activeFileTabId;
+					return {
+						...s,
+						inputMode: newMode,
+						activeFileTabId: null,
+					};
+				} else {
+					// Switching to AI mode: restore previous file tab if it still exists
+					const savedFileTabId = preTerminalFileTabIdRef.current;
+					const fileTabStillExists =
+						savedFileTabId && s.filePreviewTabs?.some((t) => t.id === savedFileTabId);
+					preTerminalFileTabIdRef.current = null;
+					return {
+						...s,
+						inputMode: newMode,
+						...(fileTabStillExists && { activeFileTabId: savedFileTabId }),
+					};
+				}
 			})
 		);
 		// Close any open dropdowns when switching modes

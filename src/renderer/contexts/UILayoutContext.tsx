@@ -50,6 +50,8 @@ export interface UILayoutContextValue {
 	setShowUnreadOnly: React.Dispatch<React.SetStateAction<boolean>>;
 	toggleShowUnreadOnly: () => void;
 	preFilterActiveTabIdRef: React.MutableRefObject<string | null>;
+	// Track the active file tab ID before switching to terminal mode, so we can restore it when returning to AI mode
+	preTerminalFileTabIdRef: React.MutableRefObject<string | null>;
 
 	// Session sidebar selection
 	selectedSidebarIndex: number;
@@ -128,6 +130,8 @@ export function UILayoutProvider({ children }: UILayoutProviderProps) {
 	const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 	// Track the active tab ID before entering unread filter mode, so we can restore it when exiting
 	const preFilterActiveTabIdRef = useRef<string | null>(null);
+	// Track the active file tab ID before switching to terminal mode, so we can restore it when returning to AI mode
+	const preTerminalFileTabIdRef = useRef<string | null>(null);
 
 	// Session sidebar selection
 	const [selectedSidebarIndex, setSelectedSidebarIndex] = useState(0);
@@ -206,6 +210,7 @@ export function UILayoutProvider({ children }: UILayoutProviderProps) {
 			setShowUnreadOnly,
 			toggleShowUnreadOnly,
 			preFilterActiveTabIdRef,
+			preTerminalFileTabIdRef,
 
 			// Session sidebar selection
 			selectedSidebarIndex,

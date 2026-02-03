@@ -460,6 +460,43 @@ describe('useMainKeyboardHandler', () => {
 			expect(mockReopenUnifiedClosedTab).toHaveBeenCalledWith(mockActiveSession);
 			expect(mockSetSessions).toHaveBeenCalled();
 		});
+
+		it('should allow toggleMode shortcut (Cmd+J) when only overlays are open', () => {
+			const { result } = renderHook(() => useMainKeyboardHandler());
+
+			const mockToggleInputMode = vi.fn();
+			const mockActiveSession = {
+				id: 'test-session',
+				name: 'Test',
+				inputMode: 'ai',
+				aiTabs: [{ id: 'tab-1', name: 'Tab 1', logs: [] }],
+				activeTabId: 'tab-1',
+				filePreviewTabs: [{ id: 'file-tab-1', path: '/test.ts' }],
+				activeFileTabId: 'file-tab-1', // File preview is active
+			};
+
+			result.current.keyboardHandlerRef.current = createMockContext({
+				hasOpenLayers: () => true, // Overlay is open (file preview)
+				hasOpenModal: () => false, // But no true modal
+				isShortcut: (_e: KeyboardEvent, actionId: string) => actionId === 'toggleMode',
+				activeSessionId: 'test-session',
+				activeSession: mockActiveSession,
+				toggleInputMode: mockToggleInputMode,
+			});
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent('keydown', {
+						key: 'j',
+						metaKey: true,
+						bubbles: true,
+					})
+				);
+			});
+
+			// Cmd+J should toggle mode even when file preview overlay is open
+			expect(mockToggleInputMode).toHaveBeenCalled();
+		});
 	});
 
 	describe('navigation handlers delegation', () => {
