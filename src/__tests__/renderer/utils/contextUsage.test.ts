@@ -5,6 +5,7 @@
 import {
 	estimateContextUsage,
 	calculateContextTokens,
+	estimateAccumulatedGrowth,
 	DEFAULT_CONTEXT_WINDOWS,
 } from '../../../renderer/utils/contextUsage';
 import type { UsageStats } from '../../../shared/types';
@@ -270,6 +271,64 @@ describe('calculateContextTokens', () => {
 			// 50000 + 758000 + 75000 = 883000 (raw total, callers check against window)
 			expect(result).toBe(883000);
 		});
+	});
+});
+
+describe('estimateAccumulatedGrowth', () => {
+	it('should grow by 1% for typical multi-tool turn with many internal calls', () => {
+		// 31% usage, 40 internal API calls
+		// outputTokens: 10026 (accumulated), cacheRead: 2.5M, window: 200K
+		const result = estimateAccumulatedGrowth(31, 10026, 2500000, 200000);
+		// prevTokens = 62000, estCalls = 2500000/62000 ≈ 40
+		// singleTurnGrowth = 10026/40 ≈ 251, growthPercent = 251/200000*100 ≈ 0 → min 1%
+		expect(result).toBe(32);
+	});
+
+	it('should cap per-turn growth at 3%', () => {
+		// Fewer calls, more output per call
+		const result = estimateAccumulatedGrowth(40, 100000, 400000, 200000);
+		// prevTokens = 80000, estCalls = 400000/80000 = 5
+		// singleTurnGrowth = 100000/5 = 20000, growthPercent = 20000/200000*100 = 10 → cap 3%
+		expect(result).toBe(43);
+	});
+
+	it('should guarantee minimum 1% growth', () => {
+		const result = estimateAccumulatedGrowth(50, 100, 5000000, 200000);
+		// Very small output → growthPercent ≈ 0 → min 1%
+		expect(result).toBe(51);
+	});
+
+	it('should return currentUsage unchanged when currentUsage is 0', () => {
+		const result = estimateAccumulatedGrowth(0, 10000, 500000, 200000);
+		expect(result).toBe(0);
+	});
+
+	it('should return currentUsage unchanged when contextWindow is 0', () => {
+		const result = estimateAccumulatedGrowth(30, 10000, 500000, 0);
+		expect(result).toBe(30);
+	});
+
+	it('should handle zero cacheRead tokens', () => {
+		const result = estimateAccumulatedGrowth(30, 5000, 0, 200000);
+		// estCalls = max(1, 0/60000) = 1, singleTurnGrowth = 5000
+		// growthPercent = 5000/200000*100 = 3% (at cap)
+		expect(result).toBe(33);
+	});
+
+	it('should grow monotonically across consecutive accumulated turns', () => {
+		let usage = 31;
+		for (let i = 0; i < 5; i++) {
+			const prev = usage;
+			usage = estimateAccumulatedGrowth(usage, 10000, 2500000, 200000);
+			expect(usage).toBeGreaterThan(prev);
+		}
+		expect(usage).toBeGreaterThanOrEqual(36);
+	});
+
+	it('should not be capped internally (caller handles threshold cap)', () => {
+		// At 98%, growth should still apply — caller caps below warning threshold
+		const result = estimateAccumulatedGrowth(98, 50000, 500000, 200000);
+		expect(result).toBe(101); // Unbounded — caller applies Math.min with threshold
 	});
 });
 
