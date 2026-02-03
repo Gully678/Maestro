@@ -1566,6 +1566,29 @@ export const FilePreview = forwardRef<FilePreviewHandle, FilePreviewProps>(funct
 
 	// Handle keyboard events
 	const handleKeyDown = (e: React.KeyboardEvent) => {
+		// Handle Escape key - dismiss overlays in priority order
+		// In tab mode, layer system isn't registered, so we handle Escape directly here
+		if (e.key === 'Escape') {
+			if (showTocOverlay) {
+				e.preventDefault();
+				e.stopPropagation();
+				setShowTocOverlay(false);
+				containerRef.current?.focus();
+				return;
+			}
+			if (searchOpen) {
+				e.preventDefault();
+				e.stopPropagation();
+				setSearchOpen(false);
+				setSearchQuery('');
+				containerRef.current?.focus();
+				return;
+			}
+			// If not in tab mode and nothing is open, let the layer system handle it
+			// (for overlay mode close behavior)
+			return;
+		}
+
 		if (e.key === 'f' && (e.metaKey || e.ctrlKey)) {
 			e.preventDefault();
 			e.stopPropagation();

@@ -799,6 +799,69 @@ print("world")
 			// TOC should be closed
 			expect(screen.queryByText('Contents')).not.toBeInTheDocument();
 		});
+
+		it('closes TOC overlay when pressing Escape', () => {
+			const markdownWithHeadings = '# Heading 1\n## Heading 2';
+			const { container } = render(
+				<FilePreview
+					{...defaultProps}
+					file={{ name: 'doc.md', content: markdownWithHeadings, path: '/test/doc.md' }}
+					markdownEditMode={false}
+					isTabMode={true}
+				/>
+			);
+
+			// Open TOC
+			const tocButton = screen.getByTitle('Table of Contents');
+			fireEvent.click(tocButton);
+
+			// Verify TOC is open
+			expect(screen.getByText('Contents')).toBeInTheDocument();
+
+			// Press Escape key on the container
+			const previewContainer = container.querySelector('[tabindex="0"]');
+			expect(previewContainer).not.toBeNull();
+			fireEvent.keyDown(previewContainer!, { key: 'Escape' });
+
+			// TOC should be closed
+			expect(screen.queryByText('Contents')).not.toBeInTheDocument();
+		});
+
+		it('closes search before TOC when both are open and Escape is pressed', () => {
+			const markdownWithHeadings = '# Heading 1\n## Heading 2';
+			const { container } = render(
+				<FilePreview
+					{...defaultProps}
+					file={{ name: 'doc.md', content: markdownWithHeadings, path: '/test/doc.md' }}
+					markdownEditMode={false}
+					isTabMode={true}
+				/>
+			);
+
+			// Open TOC first
+			const tocButton = screen.getByTitle('Table of Contents');
+			fireEvent.click(tocButton);
+			expect(screen.getByText('Contents')).toBeInTheDocument();
+
+			// Open search (Cmd+F)
+			const previewContainer = container.querySelector('[tabindex="0"]');
+			expect(previewContainer).not.toBeNull();
+			fireEvent.keyDown(previewContainer!, { key: 'f', metaKey: true });
+
+			// Search should be open
+			expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+
+			// Press Escape - should close TOC first (it's checked first in the handler)
+			fireEvent.keyDown(previewContainer!, { key: 'Escape' });
+
+			// TOC should be closed, search should still be open
+			expect(screen.queryByText('Contents')).not.toBeInTheDocument();
+			expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+
+			// Press Escape again - should close search
+			fireEvent.keyDown(previewContainer!, { key: 'Escape' });
+			expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+		});
 	});
 
 	describe('search state persistence', () => {
