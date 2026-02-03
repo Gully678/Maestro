@@ -742,6 +742,86 @@ export const MainPanel = React.memo(
 			[setActiveSessionId, onTabSelect]
 		);
 
+		// Memoized props for FilePreview to prevent re-renders that cause image flickering
+		// The file object must be stable - recreating it on each render causes the <img> to remount
+		const memoizedFilePreviewFile = useMemo(() => {
+			if (!activeFileTab) return null;
+			return {
+				name: activeFileTab.name + activeFileTab.extension,
+				content: activeFileTab.content,
+				path: activeFileTab.path,
+			};
+		}, [activeFileTab?.name, activeFileTab?.extension, activeFileTab?.content, activeFileTab?.path]);
+
+		// Memoized callbacks for FilePreview
+		const handleFilePreviewClose = useCallback(() => {
+			if (activeFileTabId) {
+				onFileTabClose?.(activeFileTabId);
+			}
+		}, [activeFileTabId, onFileTabClose]);
+
+		const handleFilePreviewEditModeChange = useCallback(
+			(editMode: boolean) => {
+				if (activeFileTabId) {
+					onFileTabEditModeChange?.(activeFileTabId, editMode);
+				}
+			},
+			[activeFileTabId, onFileTabEditModeChange]
+		);
+
+		const handleFilePreviewSave = useCallback(
+			async (path: string, content: string) => {
+				await window.maestro.fs.writeFile(path, content);
+				if (activeFileTabId) {
+					onFileTabEditContentChange?.(activeFileTabId, undefined, content);
+				}
+			},
+			[activeFileTabId, onFileTabEditContentChange]
+		);
+
+		// Compute cwd for FilePreview - memoized to prevent recalculation on every render
+		const filePreviewCwd = useMemo(() => {
+			if (!activeSession?.fullPath || !activeFileTab?.path) return '';
+			if (!activeFileTab.path.startsWith(activeSession.fullPath)) return '';
+			const relativePath = activeFileTab.path.slice(activeSession.fullPath.length + 1);
+			const lastSlash = relativePath.lastIndexOf('/');
+			return lastSlash > 0 ? relativePath.slice(0, lastSlash) : '';
+		}, [activeSession?.fullPath, activeFileTab?.path]);
+
+		const handleFilePreviewEditContentChange = useCallback(
+			(content: string) => {
+				if (activeFileTabId && activeFileTab) {
+					const hasChanges = content !== activeFileTab.content;
+					onFileTabEditContentChange?.(activeFileTabId, hasChanges ? content : undefined);
+				}
+			},
+			[activeFileTabId, activeFileTab?.content, onFileTabEditContentChange]
+		);
+
+		const handleFilePreviewScrollPositionChange = useCallback(
+			(scrollTop: number) => {
+				if (activeFileTabId) {
+					onFileTabScrollPositionChange?.(activeFileTabId, scrollTop);
+				}
+			},
+			[activeFileTabId, onFileTabScrollPositionChange]
+		);
+
+		const handleFilePreviewSearchQueryChange = useCallback(
+			(query: string) => {
+				if (activeFileTabId) {
+					onFileTabSearchQueryChange?.(activeFileTabId, query);
+				}
+			},
+			[activeFileTabId, onFileTabSearchQueryChange]
+		);
+
+		// Memoize sshRemoteId to prevent object recreation
+		const filePreviewSshRemoteId = useMemo(
+			() => activeSession?.sshRemoteId || activeSession?.sessionSshRemoteConfig?.remoteId || undefined,
+			[activeSession?.sshRemoteId, activeSession?.sessionSshRemoteConfig?.remoteId]
+		);
+
 		// Handler to view git diff
 		const handleViewGitDiff = async () => {
 			if (!activeSession || !activeSession.isGitRepo) return;
@@ -1528,8 +1608,9 @@ export const MainPanel = React.memo(
 									</div>
 								</div>
 							</div>
-						) : activeFileTabId && activeFileTab ? (
+						) : activeFileTabId && activeFileTab && memoizedFilePreviewFile ? (
 							// New file tab system - FilePreview rendered as tab content (no close button, tab handles closing)
+							// Note: All props are memoized to prevent unnecessary re-renders that cause image flickering
 							<div
 								ref={filePreviewContainerRef}
 								tabIndex={-1}
@@ -1537,42 +1618,16 @@ export const MainPanel = React.memo(
 							>
 								<FilePreview
 									ref={filePreviewRef}
-									file={{
-										name: activeFileTab.name + activeFileTab.extension,
-										// Always pass original content - editContent is passed separately for edit mode state
-										content: activeFileTab.content,
-										path: activeFileTab.path,
-									}}
-									onClose={() => {
-										// When rendered as tab, close via tab close handler
-										onFileTabClose?.(activeFileTabId);
-									}}
+									file={memoizedFilePreviewFile}
+									onClose={handleFilePreviewClose}
 									isTabMode={true}
 									theme={theme}
 									markdownEditMode={activeFileTab.editMode}
-									setMarkdownEditMode={(editMode) => {
-										// Update both the file tab's editMode and the legacy markdownEditMode setting
-										onFileTabEditModeChange?.(activeFileTabId, editMode);
-									}}
-									onSave={async (path, content) => {
-										await window.maestro.fs.writeFile(path, content);
-										// After save, clear editContent and update base content to saved value
-										onFileTabEditContentChange?.(activeFileTabId, undefined, content);
-									}}
+									setMarkdownEditMode={handleFilePreviewEditModeChange}
+									onSave={handleFilePreviewSave}
 									shortcuts={shortcuts}
 									fileTree={props.fileTree}
-									cwd={(() => {
-										// Compute relative directory from file path for proximity matching
-										if (
-											!activeSession?.fullPath ||
-											!activeFileTab.path.startsWith(activeSession.fullPath)
-										) {
-											return '';
-										}
-										const relativePath = activeFileTab.path.slice(activeSession.fullPath.length + 1);
-										const lastSlash = relativePath.lastIndexOf('/');
-										return lastSlash > 0 ? relativePath.slice(0, lastSlash) : '';
-									})()}
+									cwd={filePreviewCwd}
 									onFileClick={props.onFileClick}
 									// Per-tab navigation history for breadcrumb navigation
 									canGoBack={props.canGoBack}
@@ -1589,28 +1644,16 @@ export const MainPanel = React.memo(
 									onPublishGist={props.onPublishGist}
 									hasGist={props.hasGist}
 									onOpenInGraph={props.onOpenInGraph}
-									sshRemoteId={
-										activeSession?.sshRemoteId ||
-										activeSession?.sessionSshRemoteConfig?.remoteId ||
-										undefined
-									}
+									sshRemoteId={filePreviewSshRemoteId}
 									// Pass external edit content for persistence across tab switches
 									externalEditContent={activeFileTab.editContent}
-									onEditContentChange={(content) => {
-										// Store edit content on the tab - undefined means no changes (content matches file)
-										const hasChanges = content !== activeFileTab.content;
-										onFileTabEditContentChange?.(activeFileTabId, hasChanges ? content : undefined);
-									}}
+									onEditContentChange={handleFilePreviewEditContentChange}
 									// Pass scroll position props for persistence across tab switches
 									initialScrollTop={activeFileTab.scrollTop}
-									onScrollPositionChange={(scrollTop) => {
-										onFileTabScrollPositionChange?.(activeFileTabId, scrollTop);
-									}}
+									onScrollPositionChange={handleFilePreviewScrollPositionChange}
 									// Pass search query props for persistence across tab switches
 									initialSearchQuery={activeFileTab.searchQuery}
-									onSearchQueryChange={(query) => {
-										onFileTabSearchQueryChange?.(activeFileTabId, query);
-									}}
+									onSearchQueryChange={handleFilePreviewSearchQueryChange}
 								/>
 							</div>
 						) : (
