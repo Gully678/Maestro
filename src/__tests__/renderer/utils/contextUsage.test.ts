@@ -2,10 +2,10 @@
  * Tests for context usage estimation utilities
  */
 
+import { describe, it, expect } from 'vitest';
 import {
 	estimateContextUsage,
 	calculateContextTokens,
-	estimateAccumulatedGrowth,
 	estimateAccumulatedGrowth,
 	DEFAULT_CONTEXT_WINDOWS,
 } from '../../../renderer/utils/contextUsage';
