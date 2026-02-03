@@ -439,6 +439,81 @@ describe('Tab Naming IPC Handlers', () => {
 			expect(result).toBe('Quoted Tab Name');
 		});
 
+		it('uses stdin for prompt when SSH remote is configured', async () => {
+			// Import and mock the SSH utilities
+			const { getSshRemoteConfig } = await import('../../../../main/utils/ssh-remote-resolver');
+			const { buildSshCommand } = await import('../../../../main/utils/ssh-command-builder');
+
+			// Mock SSH config resolution to return a valid config
+			(getSshRemoteConfig as Mock).mockReturnValue({
+				config: {
+					id: 'test-remote',
+					host: 'test.example.com',
+					port: 22,
+				},
+				source: 'session',
+			});
+
+			// Mock buildSshCommand to return SSH-wrapped command
+			(buildSshCommand as Mock).mockResolvedValue({
+				command: '/usr/bin/ssh',
+				args: ['-o', 'BatchMode=yes', 'test.example.com', 'claude --print --input-format stream-json'],
+			});
+
+			// Update mock agent to support stream-json input
+			const mockAgentWithStreamJson: AgentConfig = {
+				...mockClaudeAgent,
+				capabilities: {
+					supportsStreamJsonInput: true,
+				},
+			};
+			mockAgentDetector.getAgent.mockResolvedValue(mockAgentWithStreamJson);
+
+			let onDataCallback: ((sessionId: string, data: string) => void) | undefined;
+			let onExitCallback: ((sessionId: string) => void) | undefined;
+
+			mockProcessManager.on.mockImplementation((event: string, callback: (...args: any[]) => void) => {
+				if (event === 'data') onDataCallback = callback;
+				if (event === 'exit') onExitCallback = callback;
+			});
+
+			const resultPromise = invokeHandler('tabNaming:generateTabName', {
+				userMessage: 'Help me with SSH remote feature',
+				agentType: 'claude-code',
+				cwd: '/test/project',
+				sessionSshRemoteConfig: {
+					enabled: true,
+					remoteId: 'test-remote-id',
+				},
+			});
+
+			await vi.waitFor(() => {
+				expect(mockProcessManager.spawn).toHaveBeenCalled();
+			});
+
+			// Verify spawn was called with sendPromptViaStdin flag
+			expect(mockProcessManager.spawn).toHaveBeenCalledWith(
+				expect.objectContaining({
+					sendPromptViaStdin: true,
+				})
+			);
+
+			// Verify buildSshCommand was called with useStdin option
+			expect(buildSshCommand).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.objectContaining({
+					useStdin: true,
+				})
+			);
+
+			// Simulate process output and exit
+			onDataCallback?.('tab-naming-mock-uuid-1234', 'SSH Remote Feature');
+			onExitCallback?.('tab-naming-mock-uuid-1234');
+
+			const result = await resultPromise;
+			expect(result).toBe('SSH Remote Feature');
+		});
+
 		it('handles process manager not available', async () => {
 			// Re-register with null process manager
 			registeredHandlers.clear();
